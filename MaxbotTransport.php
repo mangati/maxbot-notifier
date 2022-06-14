@@ -51,11 +51,10 @@ final class MaxbotTransport extends AbstractTransport
         }
 
         $contact = $options->getContact();
-        
-        $this->createContactWhenItNotExists($contact);
+        $normalizedPhone = $this->createContactWhenItNotExists($contact);
 
         $request = new SendTextRequest(
-            $contact->phone,
+            $normalizedPhone,
             $message->getSubject(),
         );
         $response = $this->doRequest($request);
@@ -66,12 +65,18 @@ final class MaxbotTransport extends AbstractTransport
         return $sentMessage;
     }
 
-    private function createContactWhenItNotExists(Contact $contact)
+    private function createContactWhenItNotExists(Contact $contact): string
     {
-        $response = $this->doRequest(new GetContactRequest($contact->phone));
-        if (empty($response['data'])) {
+        $phone = $contact->phone;
+        $response = $this->doRequest(new GetContactRequest($phone));
+        if (count($response['data'])) {
+            // getting the normalized phone number when it's already saved
+            $phone = $response['data'][0]['whatsapp'];
+        } else {
             $this->doRequest(new PutContactRequest($contact));
         }
+
+        return $phone;
     }
 
     private function doRequest(JsonSerializable $body): array
